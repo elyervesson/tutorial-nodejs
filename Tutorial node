@@ -1,0 +1,209 @@
+O Tutorial pode ser encontrado no link(http://www.luiztools.com.br/post/tutorial-nodejs-com-mongodb/)
+
+- Baixar o nodejs (https://nodejs.org/en/)
+
+- Extrair o .tar.xz
+
+sudo tar -C /usr/local --strip-components 1 -xf node.tar.xz
+
+- Apos isso devemos estar com node + npm instalados no usr/local/bin
+
+- Baixar e instalar o express-generator
+
+sudo npm install -g express-generator
+
+- Criar um projeto com a estrutura express
+
+express -e --git nodetest 
+
+onde o -e é para usar o view-engine e o --git é para deixar o projeto preparado para o versionamento com Git.
+
+- Instalar as dependencias do package
+
+npm install
+
+- Iniciar a aplicação
+
+npm start
+
+- Apos isso deve ser possivel acessar o link (http://localhost:3000/) e visualizar que o app ja esta funcionando.
+
+- Adição de dependencias
+
+- Para adicionar dependencias ao projeto, basta coloca-las no arquivo package.json, dessa forma sempre que o comando npm install for executado o node se encarregara de instalar essa nova dependencia.
+
+- Adicionar o mongodb e o mongoose
+
+npm install -S mongodb
+npm install -S mongoose
+
+onde o -S é para salvar a dependencia instalada no package.json
+
+- Criar diretorio para armazenar os arquivos gerados pelo mongodb
+
+mkdir data
+
+- Entendendo o Express
+
+- O arquivo app.js é o coração do app, inicialmente é possivel visualizar variaveis com referencias a pacotes, dependencias, funcionalidades do node e rotas.
+
+-- Rotas: Direcionam trafego e contem tambem um nivel de logica de programação
+
+-- app.use(express.static(path.join(__dirname, 'public'))): diz ao Express para acessar os objetos estáticos a partir de uma pasta /public/, mas no navegador elas aparecerão como se estivessem na raiz do projeto.
+
+-- module.exports = app: basicamente todos os módulos exportam um objeto que pode ser facilmente chamado em qualquer lugar no código. Nosso app master exporta seu objeto app.
+
+- Baixar o mongo
+
+curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.6.3.tgz
+
+- Extrair o arquivo
+
+tar -zxvf mongodb-linux-x86_64-3.6.3.tgz
+
+- Copiar o conteudo o arquivo extraido para uma pasta definitiva 
+
+mkdir -p mongodb
+cp -R -n origem destino
+
+- Adicionando o caminho do binario as variaveis
+
+export PATH=<mongodb-install-directory>/bin:$PATH
+
+- Criar uma pasta /data/db
+
+mkdir -p /data/db
+
+- Alterar as permissões da pasta
+
+sudo chmod -R go+w /data/db
+
+- Iniciando o servidor mongo para a nossa aplicação
+
+mongod --dbpath /home/elyervesson/Node/tutorial/nodetest/data/
+
+- Inserindo dados ao BD
+
+use nodetest
+
+db.usercollection.insert({"username":"user1", "email":"user1@email.com"})
+
+- Exibindo os dados cadastrados
+
+db.usercollection.find().pretty()
+
+- Conectando no mongo com o node
+
+- Criando um novo arquivo db.js na raiz da aplicação
+
+> Conexão com o bd
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/nodetest');
+
+> Carregar o objeto Mongoose
+var userSchema = new mongoose.Schema({
+    username: String,
+    email: String
+}, { collection: 'usercollection' }
+);
+
+module.exports = { Mongoose: mongoose, UserSchema: userSchema } 
+
+- Exibir dados do mongo
+
+/* GET Userlist page. */
+router.get('/userlist', function(req, res) {
+   var db = require("../db");
+   var Users = db.Mongoose.model('usercollection', db.UserSchema, 'usercollection');
+   Users.find({}).lean().exec(
+      function (e, docs) {
+         res.render('userlist', { "userlist": docs });
+   });
+});
+
+router.get: define a nova rota que estamos criando com o nome de userlist.
+
+require: volta uma pasta e carrega o conteúdo do arquivo db.js
+
+db.Mongoose.model: carrega a coleção e usuários com o esquema deles. 
+
+lean(): retorna um JSON text-plain ao invés de objetos Mongoose complexos.
+
+res.render: renderizar na tela os objetos retornados.
+
+- Construindo a view
+
+<!DOCTYPE html>
+<html lang="en">
+	<head></head>
+	<body>
+		<h1 class="text-center title-1"> Lista de Usuários </h1>
+		<ul>
+			<% userlist.forEach(function(user){ %>
+			<li><a href="mailto:<%= user.email %>"><%= user.username %></a></li> 
+			<%})%>
+		</ul>
+	</body>
+</html>
+
+O objeto userlist, que será retornado pela rota que criamos no passo anterior, será iterado com um forEach e seus objetos utilizados um-a-um para compor uma lista não-ordenada com seus emails e senhas.
+
+- Iniciar o servidor node
+
+npm start
+
+- Escrevendo no banco de dados
+
+- Devemos criar um html que contem o form de criação de usuario
+
+<!DOCTYPE html>
+<html lang="en">
+<head></head>
+<body>
+    <h1 class="text-center title-1"> Cadastro de Usu&aacute;rio </h1>
+    <form action="/adduser" method="post">
+        <p>Username:<input type="text" name="username" /></p>
+        <p>Email:<input type="text" name="useremail" /></p>
+        <p><input type="submit" value="Salvar" /></p>
+    </form>
+</body>
+</html>
+
+- Adicionar uma rota de get para retornar a pagina de criação de usuario
+
+/* GET New User page. */
+router.get('/newuser', function(req, res) {
+	res.render('newuser', { title: 'Add New User' });
+});
+
+
+- Adicionar a rota que cria usuarios no bd
+
+/* POST to Add User Service */
+router.post('/adduser', function (req, res) {
+
+    var db = require("../db");
+    var userName = req.body.username;
+    var userEmail = req.body.useremail;
+
+    var Users = db.Mongoose.model('usercollection', db.UserSchema, 'usercollection');
+    var user = new Users({ username: userName, email: userEmail });
+    user.save(function (err) {
+        if (err) {
+            console.log("Error! " + err.message);
+            return err;
+        }
+        else {
+            console.log("Post saved");
+            res.redirect("userlist");
+        }
+    });
+});
+
+
+
+
+
+
+
+
